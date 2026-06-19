@@ -1,61 +1,50 @@
 import time
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
 import random
-
-import sys
-
-sys.stdout = open("log.txt", "w")
-sys.stderr = open("errori.txt", "w")
+import requests
+from bs4 import BeautifulSoup
 
 TOKEN = "8636760212:AAFVsUGLoY3X1cbrdERWCo6ugpfTYxy9OYQ"
 CHAT_ID = "5127739968"
-MAPPE_DESIDERATE = ["_666", "_interference", "_axiom", "_tendies", "_demise", "_4am", "_nyx", "_sanctuary","_highlands","_quickie"]
+MAPPE_DESIDERATE = ["_666", "_interference", "_axiom", "_tendies", "_demise", "_4am", "_nyx", "_sanctuary","_highlands","_quickie","_reverie"]
 notificate = []
 
 def invia_telegram(messaggio):
-    import requests
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     params = {'chat_id': CHAT_ID, 'text': messaggio}
-    requests.get(url, params=params)
+    try:
+        requests.get(url, params=params)
+    except Exception as e:
+        print(f"Errore invio Telegram: {e}")
 
 def controlla_mappe():
     global notificate
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    url = "https://ksf.surf/connect"
     
     try:
-        driver.get("https://ksf.surf/connect")
-        time.sleep(10) 
+        # Scarica la pagina in modo leggero
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        risposta = requests.get(url, headers=headers, timeout=15)
         
-        contenuto_pagina = driver.page_source.lower()
-        
-
-        print("--- Analisi pagina in corso ---")
-        
-        mappe_trovate_ora = []
-        for m in MAPPE_DESIDERATE:
-            if m.lower() in contenuto_pagina:
-                print(f"DEBUG: Mappa {m} TROVATA nel codice HTML")
-                mappe_trovate_ora.append(m)
-                if m not in notificate:
-                    invia_telegram(f" Map {m} found on KSF!")
-                    notificate.append(m)
-            else:
-       
-                print(f"DEBUG: Mappa {m} NON trovata")
-        
-        notificate = [m for m in notificate if m in mappe_trovate_ora]
-        
+        if risposta.status_code == 200:
+            contenuto = risposta.text.lower()
+            mappe_trovate_ora = []
+            
+            for m in MAPPE_DESIDERATE:
+                if m.lower() in contenuto:
+                    mappe_trovate_ora.append(m)
+                    if m not in notificate:
+                        invia_telegram(f" Map surf{m} found on KSF!")
+                        notificate.append(m)
+            
+            notificate = [m for m in notificate if m in mappe_trovate_ora]
+        else:
+            print(f"Errore connessione: {risposta.status_code}")
+            
     except Exception as e:
-        print(f"Errore: {e}")
-    finally:
-        driver.quit()
+        print(f"Errore scraping: {e}")
 
-invia_telegram("Bot enabled correctly")
+# Avvio
+invia_telegram("Bot enabled correctly (Requests mode)")
 while True:
     controlla_mappe()
     time.sleep(random.randint(50, 70))
